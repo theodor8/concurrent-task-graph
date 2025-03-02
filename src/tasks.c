@@ -55,6 +55,7 @@ void tasks_add(tasks_t *tasks, void (*func)(void *), void *args)
 
 task_t *tasks_get(tasks_t *tasks)
 {
+    assert(tasks->first != NULL && tasks->last != NULL);
     task_t *task = tasks->first;
     tasks->first = tasks->first->next;
     if (tasks->first == NULL)

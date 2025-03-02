@@ -20,16 +20,31 @@ struct tthreads
     sem_t tasks_sem;
 };
 
+typedef struct
+{
+    size_t id;
+    tthreads_t *tthreads;
+} thread_args_t;
+
 
 static void *task_thread(void *arg)
 {
-    tthreads_t *tthreads = (tthreads_t *)arg;
+    thread_args_t *args = (thread_args_t *)arg;
+    size_t id = args->id;
+    tthreads_t *tthreads = args->tthreads;
+    free(args);
     while (true)
     {
+        printf("Thread %zu waiting for task\n", id);
         sem_wait(&tthreads->tasks_sem);
+        printf("Thread %zu getting task\n", id);
+
+        // TODO mutex
         task_t *task = tasks_get(tthreads->tasks);
+        printf("Thread %zu executing task\n", id);
         task_exec(task);
         task_destroy(task);
+        // TODO dependencies
     }
     return NULL;
 }
@@ -43,14 +58,18 @@ tthreads_t *tthreads_create(size_t num_threads)
     tthreads->tasks = tasks_create();
     sem_init(&tthreads->tasks_sem, 0, 0);
 
+    thread_args_t *args;
     for (size_t i = 0; i < num_threads; ++i)
     {
-        if (pthread_create(&tthreads->threads[i], NULL, task_thread, tthreads) != 0)
+        args = calloc(1, sizeof(thread_args_t));
+        args->id = i;
+        args->tthreads = tthreads;
+        if (pthread_create(&tthreads->threads[i], NULL, task_thread, args) != 0)
         {
             perror("Failed to create thread");
             exit(EXIT_FAILURE);
         }
-        printf("Created thread\n");
+        printf("Created thread %zu\n", i);
     }
 
     return tthreads;
@@ -73,6 +92,7 @@ void tthreads_destroy(tthreads_t *tthreads)
 
 void tthreads_add(tthreads_t *tthreads, void (*func)(void *), void *args)
 {
+    // TODO mutex
     tasks_add(tthreads->tasks, func, args);
     sem_post(&tthreads->tasks_sem);
 }
