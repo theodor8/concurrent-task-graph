@@ -1,24 +1,36 @@
 #include <stdio.h>
+#include <unistd.h>
 
-#include "task.h"
+#include "tthreads.h"
 
 
 
-void task_1(void *args)
+void task_print(void *arg)
 {
-    int *ints = (int *)args;
-    printf("%d, %d, %d\n", ints[0], ints[1], ints[2]);
+    printf("%s\n", (char *)arg);
 }
+
+void task_add_tasks(void *_)
+{
+    char str[50];
+    for (int i = 0; i < 10; ++i)
+    {
+        sprintf(str, "Task %d", i);
+        /*tasks_add(tasks, task_print, str);*/
+        sleep(1);
+    }
+}
+
+
 
 
 int main()
 {
-    int args[] = {5, 6, 7};
-    task_t *t = task_create(task_1, args);
+    tthreads_t *tthreads = tthreads_create(3);
+    
+    sleep(3);
 
-    task_exec(t);
-
-    task_destroy(t);
+    tthreads_destroy(tthreads);
 
     return 0;
 }
