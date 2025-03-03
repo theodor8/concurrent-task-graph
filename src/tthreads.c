@@ -39,12 +39,12 @@ static void *task_thread(void *arg)
         sem_wait(&tthreads->tasks_sem);
         printf("Thread %zu getting task\n", id);
 
-        // TODO mutex
+        // TODO: mutex
         task_t *task = tasks_get(tthreads->tasks);
         printf("Thread %zu executing task\n", id);
         task_exec(task);
-        task_destroy(task);
-        // TODO dependencies
+        /*task_destroy(task);*/
+        // TODO: dependencies
     }
     return NULL;
 }
@@ -88,11 +88,16 @@ void tthreads_destroy(tthreads_t *tthreads)
     free(tthreads);
 }
 
+void tthreads_purge(tthreads_t *tthreads)
+{
+    // TODO: free completed tasks
+}
+
 
 
 void tthreads_add(tthreads_t *tthreads, void (*func)(void *), void *args)
 {
-    // TODO mutex
+    // TODO: mutex
     tasks_add(tthreads->tasks, func, args);
     sem_post(&tthreads->tasks_sem);
 }

@@ -15,6 +15,7 @@ struct task
 struct tasks
 {
     task_t *first;
+    task_t *curr;
     task_t *last;
 };
 
@@ -36,6 +37,11 @@ void tasks_destroy(tasks_t *tasks)
     }
 }
 
+void tasks_purge(tasks_t *tasks)
+{
+    // TODO: free completed tasks
+}
+
 void tasks_add(tasks_t *tasks, void (*func)(void *), void *args)
 {
     task_t *task = calloc(1, sizeof(task_t));
@@ -43,26 +49,25 @@ void tasks_add(tasks_t *tasks, void (*func)(void *), void *args)
     task->arg = args;
     if (tasks->first == NULL)
     {
-        assert(tasks->last == NULL);
-        tasks->first = tasks->last = task;
+        assert(tasks->curr == NULL && tasks->last == NULL);
+        tasks->first = tasks->curr = tasks->last = task;
     }
     else
     {
         tasks->last->next = task;
         tasks->last = task;
+        if (tasks->curr == NULL)
+        {
+            tasks->curr = task;
+        }
     }
 }
 
 task_t *tasks_get(tasks_t *tasks)
 {
-    assert(tasks->first != NULL && tasks->last != NULL);
-    task_t *task = tasks->first;
-    tasks->first = tasks->first->next;
-    if (tasks->first == NULL)
-    {
-        assert(tasks->last == task);
-        tasks->last = NULL;
-    }
+    assert(tasks->first != NULL && tasks->curr != NULL && tasks->last != NULL);
+    task_t *task = tasks->curr;
+    tasks->curr = tasks->curr->next;
     return task;
 }
 
