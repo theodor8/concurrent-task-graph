@@ -16,7 +16,7 @@ clean:
 obj/%.o: src/%.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-bin/main: obj/main.o obj/tasks.o obj/tthreads.o
+bin/main: obj/main.o obj/tthreads.o
 	$(CC) $^ -o $@
 
 

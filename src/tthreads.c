@@ -5,10 +5,31 @@
 #include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <assert.h>
 
-#include "tasks.h"
 
 
+typedef struct task task_t;
+struct task
+{
+    void (*func)(void *);
+    void *arg;
+    task_t *next;
+};
+
+static task_t *task_create(void (*func)(void *), void *arg)
+{
+    task_t *task = calloc(1, sizeof(task_t));
+    task->func = func;
+    task->arg = arg;
+    task->next = NULL;
+    return task;
+}
+
+static void task_exec(task_t *task)
+{
+    task->func(task->arg);
+}
 
 
 
@@ -16,9 +37,40 @@ struct tthreads
 {
     pthread_t *threads;
     size_t num_threads;
-    tasks_t *tasks;
-    sem_t tasks_sem;
+    task_t *task_first;
+    task_t *task_curr;
+    task_t *task_last;
+    sem_t task_sem;
 };
+
+static task_t *get_task(tthreads_t *tthreads)
+{
+    assert(tthreads->task_first != NULL && tthreads->task_curr != NULL && tthreads->task_last != NULL);
+    task_t *task = tthreads->task_curr;
+    tthreads->task_curr = tthreads->task_curr->next;
+    return task;
+}
+
+static void add_task(tthreads_t *tthreads, void (*func)(void *), void *arg)
+{
+    task_t *task = task_create(func, arg);
+    if (tthreads->task_first == NULL)
+    {
+        assert(tthreads->task_curr == NULL && tthreads->task_last == NULL);
+        tthreads->task_first = tthreads->task_curr = tthreads->task_last = task;
+    }
+    else
+    {
+        tthreads->task_last->next = task;
+        tthreads->task_last = task;
+        if (tthreads->task_curr == NULL)
+        {
+            tthreads->task_curr = task;
+        }
+    }
+}
+
+
 
 typedef struct
 {
@@ -36,14 +88,13 @@ static void *task_thread(void *arg)
     while (true)
     {
         printf("Thread %zu waiting for task\n", id);
-        sem_wait(&tthreads->tasks_sem);
+        sem_wait(&tthreads->task_sem);
         printf("Thread %zu getting task\n", id);
 
         // TODO: mutex
-        task_t *task = tasks_get(tthreads->tasks);
+        task_t *task = get_task(tthreads);
         printf("Thread %zu executing task\n", id);
         task_exec(task);
-        /*task_destroy(task);*/
         // TODO: dependencies
     }
     return NULL;
@@ -55,8 +106,7 @@ tthreads_t *tthreads_create(size_t num_threads)
     tthreads_t *tthreads = calloc(1, sizeof(tthreads_t));
     tthreads->threads = calloc(num_threads, sizeof(pthread_t));
     tthreads->num_threads = num_threads;
-    tthreads->tasks = tasks_create();
-    sem_init(&tthreads->tasks_sem, 0, 0);
+    sem_init(&tthreads->task_sem, 0, 0);
 
     thread_args_t *args;
     for (size_t i = 0; i < num_threads; ++i)
@@ -83,23 +133,35 @@ void tthreads_destroy(tthreads_t *tthreads)
         pthread_join(tthreads->threads[i], NULL);
     }
     free(tthreads->threads);
-    tasks_destroy(tthreads->tasks);
-    sem_destroy(&tthreads->tasks_sem);
+    task_t *task = tthreads->task_first;
+    while (task) 
+    {
+        task_t *next = task->next;
+        free(task);
+        task = next;
+    }
+    sem_destroy(&tthreads->task_sem);
     free(tthreads);
 }
 
 void tthreads_purge(tthreads_t *tthreads)
 {
-    // TODO: free completed tasks
+    task_t *task = tthreads->task_first;
+    while (task != tthreads->task_curr) 
+    {
+        task_t *next = task->next;
+        free(task);
+        task = next;
+    }
 }
 
 
 
-void tthreads_add(tthreads_t *tthreads, void (*func)(void *), void *args)
+void tthreads_add(tthreads_t *tthreads, void (*func)(void *), void *arg)
 {
     // TODO: mutex
-    tasks_add(tthreads->tasks, func, args);
-    sem_post(&tthreads->tasks_sem);
+    add_task(tthreads, func, arg);
+    sem_post(&tthreads->task_sem);
 }
 
 
