@@ -7,35 +7,50 @@
 
 void task_print(void *arg)
 {
-    printf("%s\n", (char *)arg);
+    char *str = (char *)arg;
+    printf("%s\n", str);
+    free(str);
 }
 
-void task_add_tasks(void *arg)
+void task_sleep(void *arg)
 {
-    tthreads_t *tthreads = (tthreads_t *)arg;
-    char str[50];
-    for (int i = 0; i < 10; ++i)
-    {
-        sprintf(str, "Task %d", i);
-        tthreads_add(tthreads, task_print, str);
-        sleep(1);
-    }
+    printf("task_sleep\n");
+    sleep(1);
 }
-
 
 
 
 int main()
 {
-    tthreads_t *tthreads = tthreads_create(3);
+    tthreads_t *tthreads = tthreads_create(5);
 
-
-    for (int i = 0; i < 5; ++i)
+    char *str = NULL;
+    task_t *prev_task = NULL;
+    for (int i = 0; i < 10; ++i)
     {
-        tthreads_add(tthreads, task_print, "task");
+        str = calloc(20, sizeof(char));
+        sprintf(str, "task %d", i);
+        task_t **deps = calloc(1, sizeof(task_t *));
+        deps[0] = prev_task;
+        prev_task = tthreads_add(tthreads, task_print, str, deps, prev_task ? 1 : 0);
+        free(deps);
     }
+
+    /**/
+    /*task_t *ts = tthreads_add(tthreads, task_sleep, NULL, NULL, 0);*/
+    /*char *str = NULL;*/
+    /*for (int i = 0; i < 5; ++i) {*/
+    /*    str = calloc(20, sizeof(char));*/
+    /*    sprintf(str, "task %d", i);*/
+    /*    task_t **deps = calloc(1, sizeof(task_t *));*/
+    /*    deps[0] = ts;*/
+    /*    tthreads_add(tthreads, task_print, str, deps, 1);*/
+    /*    free(deps);*/
+    /*}*/
+
+
+    sleep(2);
     
-    sleep(1);
 
     tthreads_destroy(tthreads);
 
